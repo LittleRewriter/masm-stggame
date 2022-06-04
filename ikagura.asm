@@ -4,6 +4,8 @@
 option casemap :none
 
 	printf			PROTO C :ptr sbyte, :vararg
+	time			PROTO C :dword
+	srand			PROTO C :dword
 	rand			PROTO C
 	getchar			PROTO C
 
@@ -44,6 +46,8 @@ FMTCHAR			byte	"%c", 0
 FMTINT			byte	"%d ", 0
 
 MAXCOUNT		dword	1024
+
+GAMEOVER		byte	"GAME OVER!", 10, 0
 
 .data
 
@@ -630,7 +634,7 @@ DrawEnemyBullet PROC   BulletPosition  :DWORD
       invoke GenerateGlPos, BulletPosition
       invoke GenerateGlScale, ADDR BulletScale
       invoke GenerateGlRotationX, FValueM90
-      invoke GlDrawCone, ADDR PlayerBulletAmb, ADDR PlayerBulletDiff,
+      invoke GlDrawCone, ADDR EnemyBulletAmb, ADDR EnemyBulletDiff,
                 ADDR DValue1, ADDR DValue1, BulletSlices
     invoke glPopMatrix
     ret
@@ -733,8 +737,8 @@ renderPlayerBullet proc
 
 	push 	edi
 	lea		ebx, @tp
-	invoke	remapXYToPos, ebx, ADDR @tp, BulletZPos
-	invoke 	DrawEnemyBullet, ADDR @tp
+	invoke	remapXYToPos, eax, ebx, BulletZPos
+	invoke 	DrawPlayerBullet, ADDR @tp
 	pop 	edi
 
 	cmp		edi, 2048
@@ -1108,7 +1112,7 @@ addPBullet proc	uses eax edi
 			mov		edi, playerBulTop
 			xor		eax, eax
 			mov		ax, playerColor
-			shl		eax, 16
+			; shl		eax, 16
 			mov		playerBulList[edi*4], eax
 			inc		edi
 			xor		eax, eax
@@ -1139,6 +1143,8 @@ generateEBullet proc uses ebx ecx edi
 			push	edi
 			push	ebx
 			push	ecx
+			invoke	time, 0
+			invoke	srand, eax
 			invoke	rand
 			mov		ebx, 3
 			div		ebx
@@ -1173,12 +1179,13 @@ generateEBullet endp
 ; randomly generate enemy
 generateEnemy proc uses eax ebx ecx edx edi
 			; possibility filter, 2/3
+			invoke	time, 0
+			invoke	srand, eax
 			invoke	rand
 			mov		ebx, 3
 			div		ebx
 			cmp		edx, 0
 			je		GENR
-			invoke	printf, offset FMTINT, 999
 			xor		ecx, ecx
 			; 1 to generate white enemy
 			cmp		edx, 1
@@ -1196,8 +1203,10 @@ generateEnemy proc uses eax ebx ecx edx edi
  GEN2:
 			; rand position
 			xor		eax, eax
-			mov		eax, 1
-			;invoke	rand
+			;mov		eax, 1
+			invoke	time, 0
+			invoke	srand, eax
+			invoke	rand
 			mov		bx, _WIDTH
 			div		bx
 			xor		eax, eax
@@ -1278,11 +1287,13 @@ moveEnemy proc uses eax ebx ecx edx edi
 			push	ecx
 			push	ebx
 			push	edi
+			invoke	time, 0
+			invoke	srand, eax
 			invoke	rand
 			pop		edi
 			pop		ebx
 			pop		ecx
-			mov		eax, 1
+			mov		eax, 0
 			mov		edx, 3
 			div		dl
 			; 0, goto vertical
@@ -1335,8 +1346,6 @@ moveEnemy endp
 
 ; player's move during frames by pVertical and pHorizonal
 movePlayer proc uses eax
-			; invoke	printf, offset FMTINT, playerX
-			; invoke	printf, offset FMTINT, playerY
 			xor		eax, eax
 			mov		ax, pVertical
 			cmp		ax, 2
@@ -1575,6 +1584,7 @@ showScreen endp
 
 ; called when player's dead
 gameOver proc
+			invoke		printf, offset GAMEOVER
 			ret
 gameOver endp
 
@@ -1605,53 +1615,77 @@ MainLoop PROC
 			mov		bx, frameCount
 			inc		bx
 			mov		frameCount, bx
-			cmp		bx, 50
-			jge		GL1
+			cmp		bx, 200
+			jge		GL1000
+			mov		ax, bx
+			mov		dl, 100
+			div		dl
+			cmp		ah, 0
+			je		GL500
+			mov		ax, bx
+			mov		dl, 50
+			div		dl
+			cmp		ah, 0
+			je		GL250
+			mov		ax, bx
+			mov		dl, 20
+			div		dl
+			cmp		ah, 0
+			je		GL100
 			mov		ax, bx
 			mov		dl, 10
 			div		dl
 			cmp		ah, 0
-			je		GL2
+			je		GL50
 			mov		ax, bx
 			mov		dl, 5
 			div		dl
 			cmp		ah, 0
-			je		GL3
+			je		GL25
 			mov		ax, bx
 			mov		dl, 2
 			div		dl
 			cmp		ah, 0
-			je		GL4
+			je		GL10
 			jmp		GL5
- GL1:		; per 1 second
+ GL1000:	; per 1 second
 			mov		bx, 0
 			mov		frameCount, bx
 			call	generateEnemy
 			;invoke	printf, offset FMTINT, 1
 
- GL2:		; per 200 ms
-			call	generateEBullet
+ GL500:		; per 500 ms
+			
+			
 			;invoke	printf, offset FMTINT, 2
- GL3:		; per 100 ms
+ GL250:		; per 250 ms
 			call	resetLock
-			call	moveEnemy
+			
+			
 			;invoke	printf, offset FMTINT, 3
- GL4:		; per 40 ms
-			call	moveBullet
+ GL100:		; per 100 ms
+			call	generateEBullet
+			
 			;invoke	printf, offset FMTINT, 4
 
- GL5:		; per 20 ms
-			call	movePlayer
+ GL50:		; per 50 ms
+			
+			
+ GL25:		; per 25ms
+			call	moveEnemy
 			call	checkEnemyHit
 			call	checkPlayerHit
 			call	readOpr
-
+ GL10:		; per 10ms
+			call	movePlayer
+ GL5:		; per 5ms
+			call	moveBullet
 			call	showScreen
 			mov		dx, playerHP
 			cmp		dx, 0
 			jle		GameOvr
-			; sleep 20ms to make fps around 50?
-			invoke	Sleep, 20
+			; sleep 5ms to make fps around 200
+			invoke	Sleep, 5
 			jmp		BeginLoop
  GameOvr:	call	gameOver
  EndLoop:
