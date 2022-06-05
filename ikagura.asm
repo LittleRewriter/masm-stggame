@@ -301,7 +301,7 @@ checkEnemyHit		PROTO
 checkPlayerHit		PROTO
 addEBullet			PROTO :DWORD, :DWORD
 addEnemy			PROTO :DWORD, :DWORD
-addPBullet			PROTO
+addPBullet			PROTO :WORD
 generateEBullet		PROTO
 generateEnemy		PROTO
 moveBullet			PROTO
@@ -704,13 +704,14 @@ renderEnemyBullet proc
 	inc		edi
 	mov		eax, enemyBulList[edi*4]
 	inc 	edi 
-
+	cmp		ebx, 0
+	je		CPH_NE
 	push	edi
 	lea		ebx, @tp
 	invoke	remapXYToPos, eax, ebx, BulletZPos
 	invoke 	DrawEnemyBullet, ADDR @tp
 	pop		edi
-
+ CPH_NE:
 	cmp		edi, 2048
 	jle		CPH_BE
 	sub		edi, 2048
@@ -777,6 +778,8 @@ renderEnemy proc
 	inc		edi
 	mov		eax, enemyList[edi*4]
 	inc 	edi 
+	cmp		ebx, 0
+	je		CPH_NES
 
 	push	edi
 	lea		ebx, @tp
@@ -785,7 +788,7 @@ renderEnemy proc
 	push	edi
 	invoke 	DrawEnemyPlane, ADDR @tp
 	pop 	edi
-
+ CPH_NES:
 	cmp		edi, 2048
 	jle		CPH_ES
 	sub		edi, 2048
@@ -854,7 +857,7 @@ cursorXY endp
 ; check whether obj at posA and obj at posB is collide
 ; use |ax-bx|+|ay-by| to check distance
 ; collide then turn eax to 1, else to 0
-checkHitbox	proc uses ebx ecx, posA :dword, posB :dword
+checkHitbox	proc uses ebx ebx ecx edi esi, posA :dword, posB :dword
 			xor		eax, eax
 			mov		ebx, posA
 			mov		ecx, posB
@@ -881,7 +884,7 @@ checkHitbox	proc uses ebx ecx, posA :dword, posB :dword
 			pop		ecx
  CHB2:		sub		bx, cx
 			add		ax, bx
-			cmp		ax, 50
+			cmp		ax, 25
 			; if hit
 			jle		CHB3
 			xor		eax, eax
@@ -914,26 +917,39 @@ checkEnemyHit proc uses eax ebx ecx edx
 			jl		CEH_3
 			sub		esi, 2048
 			; if bigger than 2048, sub 2048, equals to mod 2048
- CEH_3:		cmp		esi, @bt
+ CEH_3:		cmp		esi, @et
 			je		CEH_R
 			mov		ecx, enemyList[esi*4]
 			inc		esi
 			mov		edx, enemyList[esi*4]
 			inc		esi
+			cmp		ecx, 0
+			je		CEH_E
 			; loop of itetate playerbullet
- CEH_B:		mov		eax, playerBulList[edi*4]
+ CEH_B:		cmp		edi, 2048
+			jl		CEH_4
+			sub		edi, 2048
+ CEH_4:		
+			cmp		edi, @bt
+			je		CEH_E
+			mov		eax, playerBulList[edi*4]
 			inc		edi
 			mov		ebx, playerBulList[edi*4]
 			inc		edi
+			cmp		eax, 0
+			je		CEH_B
+			mov		enemyCopy, ecx
+			mov		bulletCopy, eax
 			; compare pos dword
 			invoke	checkHitbox, ebx, edx
 			cmp		eax, 0
 			je		CEH_1
 			; not je CEH_1, means bullet and enemy collides
-			mov		enemyCopy, ecx
-			mov		bulletCopy, eax
+			mov		ecx, enemyCopy
+			mov		eax, bulletCopy
 			; only need lower 2 bit
 			and		cx, 3
+
 			; same color, doesn't hit
 			cmp		cx, ax
 			je		CEH_1
@@ -942,8 +958,8 @@ checkEnemyHit proc uses eax ebx ecx edx
 			mov		ax, cx
 			shr		ecx, 16
 			sub		ecx, 50
-			cmp		ecx, 1
-			jle		CEH_Dead
+			cmp		ecx, 0
+			je		CEH_Dead
 			shl		ecx, 16
 			mov		cx, ax
 			jmp		CEH_C
@@ -951,20 +967,31 @@ checkEnemyHit proc uses eax ebx ecx edx
 			xor		ecx, ecx
  CEH_C:
 			; go back to point to current obj
+			cmp		edi, 2
+			jge		CEH_O1
+			add		edi, 2048
+ CEH_O1:	
+			cmp		esi, 2
+			jge		CEH_O2
+			add		esi, 2048
+ CEH_O2:
 			sub		edi, 2
 			sub		esi, 2
 			mov		enemyList[esi*4], ecx
 			xor		eax, eax
 			mov		playerBulList[edi*4], eax
+
+			cmp		esi, 2048
+			jl		CEH_O3
+			sub		esi, 2048
+ CEH_O3:
+			cmp		edi, 2048
+			jl		CEH_O4
+			sub		edi, 2048
+ CEH_O4:
 			add		esi, 2
 			add		edi, 2
-			
- CEH_1:		cmp		edi, 2048
-			jl		CEH_2
-			sub		edi, 2048
- CEH_2:		
-			cmp		edi, @et
-			je		CEH_E
+ CEH_1:
 			jmp		CEH_B
  CEH_R:
 			ret
@@ -1002,6 +1029,8 @@ checkPlayerHit proc uses eax ebx ecx edx
 			inc		edi
 			mov		eax, enemyBulList[edi*4]
 			inc		edi
+			cmp		ebx, 0
+			je		CPH_1
 			invoke	checkHitbox, eax, ecx
 			cmp		eax, 0
 			je		CPH_1
@@ -1036,6 +1065,8 @@ checkPlayerHit proc uses eax ebx ecx edx
 			mov		eax, enemyList[esi*4]
 			inc		esi
 			invoke	checkHitbox, eax, ecx
+			cmp		ebx, 0
+			je		CPH_3
 			cmp		eax, 0
 			je		CPH_3
 			; player hitted by enemy
@@ -1047,7 +1078,7 @@ checkPlayerHit proc uses eax ebx ecx edx
 			je		CPH_3
 			; else hit
 			mov		bx, playerHP
-			sub		bx, 50
+			sub		bx, 100
 			mov		playerHP, bx
 			mov		ebx, enemyCopy
 			mov		ax, bx
@@ -1114,9 +1145,11 @@ addEnemy proc uses eax edi, enemy :dword, pos :dword
 addEnemy endp
 
 ; add to player bullet list, according to playerX, playerY, and playerColor
-addPBullet proc	uses eax edi
+addPBullet proc	uses eax edi, pdir :word
 			mov		edi, playerBulTop
 			xor		eax, eax
+			mov		ax, pdir
+			shl		ax, 16
 			mov		ax, playerColor
 			; shl		eax, 16
 			mov		playerBulList[edi*4], eax
@@ -1145,11 +1178,13 @@ generateEBullet proc uses ebx ecx edi
 			inc		edi
 			mov		ecx, enemyList[edi*4]
 			inc		edi
+			cmp		ebx, 0
+			je		GEB3
 			; save environment, rand to make p 1/3
 			push	edi
 			push	ebx
 			push	ecx
-			invoke	time, 0
+			invoke	GetTickCount
 			invoke	srand, eax
 			invoke	rand
 			mov		ebx, 3
@@ -1185,7 +1220,7 @@ generateEBullet endp
 ; randomly generate enemy
 generateEnemy proc uses eax ebx ecx edx edi
 			; possibility filter, 2/3
-			invoke	time, 0
+			invoke	GetTickCount
 			invoke	srand, eax
 			invoke	rand
 			mov		ebx, 3
@@ -1205,12 +1240,13 @@ generateEnemy proc uses eax ebx ecx edx edi
  GEN1:		
 			mov		cx, 100
 			shl		ecx, 16
-			mov		cx, 1
+			; for test
+			mov		cx, 2
  GEN2:
 			; rand position
 			xor		eax, eax
 			;mov		eax, 1
-			invoke	time, 0
+			invoke	GetTickCount
 			invoke	srand, eax
 			invoke	rand
 			mov		bx, _WIDTH
@@ -1277,13 +1313,15 @@ moveBullet proc uses eax ebx edx edi
 moveBullet endp
 
 ; move of all enemy
-moveEnemy proc uses eax ebx ecx edx edi
+moveEnemy proc uses eax ebx ecx edx edi esi
 			mov		edi, enemyBtm
  MEN:		
 			cmp		edi, enemyTop
 			je		MENRet
-			; enemy type is useless, skip
+			mov		ecx, enemyList[edi*4]
 			inc		edi
+			cmp		ecx, 0
+			je		MEN2
 			; enemy pos to ecx
 			mov		ecx, enemyList[edi*4]
 			; bx for higher 16 bit, pos x
@@ -1293,20 +1331,20 @@ moveEnemy proc uses eax ebx ecx edx edi
 			push	ecx
 			push	ebx
 			push	edi
-			invoke	time, 0
+			invoke	GetTickCount
+			add		eax, edi
 			invoke	srand, eax
 			invoke	rand
 			pop		edi
 			pop		ebx
 			pop		ecx
-			mov		eax, 0
-			mov		edx, 3
-			div		dl
+			mov		esi, 3
+			idiv	esi
 			; 0, goto vertical
-			cmp		dx, 0
+			cmp		edx, 0
 			je		MENV
 			; 1 goto left
-			cmp		dx, 1
+			cmp		edx, 1
 			je		MENL
 			; else goto right
 			add		bx, 1
@@ -1409,7 +1447,7 @@ playerShoot proc uses eax ebx ecx edx edi esi
 			jle		ShtRet
 			dec		ax
 			mov		bulletRes, ax
-			call	addPBullet
+			invoke	addPBullet, ax
 ShtRet:		ret
 playerShoot endp
 
@@ -1682,11 +1720,13 @@ MainLoop PROC
 			call	checkEnemyHit
 			call	checkPlayerHit
 			call	readOpr
+			
  GL10:		; per 10ms
 			call	movePlayer
+			call	showScreen
  GL5:		; per 5ms
 			call	moveBullet
-			call	showScreen
+			
 			mov		dx, playerHP
 			cmp		dx, 0
 			jle		GameOvr
