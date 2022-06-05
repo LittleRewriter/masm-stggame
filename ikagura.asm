@@ -740,7 +740,9 @@ renderPlayerBullet proc
 	mov		ebx, playerBulList[edi*4]
 	inc		edi
 	mov		eax, playerBulList[edi*4]
-	inc 	edi 
+	inc 	edi
+	cmp		ebx, 0
+	je		CPH_BP
 
 	push 	edi
 	lea		ebx, @tp
@@ -857,7 +859,7 @@ cursorXY endp
 ; check whether obj at posA and obj at posB is collide
 ; use |ax-bx|+|ay-by| to check distance
 ; collide then turn eax to 1, else to 0
-checkHitbox	proc uses ebx ebx ecx edi esi, posA :dword, posB :dword
+checkHitbox	proc uses ebx ecx edx edi esi, posA :dword, posB :dword
 			xor		eax, eax
 			mov		ebx, posA
 			mov		ecx, posB
@@ -913,9 +915,11 @@ checkEnemyHit proc uses eax ebx ecx edx
 			mov		edi, @bb
 			mov		esi, @eb
 			; loop of iterate enemy
- CEH_E:		cmp		esi, 2048
+ CEH_E:		mov		edi, @bb
+			cmp		esi, 2048
 			jl		CEH_3
 			sub		esi, 2048
+			
 			; if bigger than 2048, sub 2048, equals to mod 2048
  CEH_3:		cmp		esi, @et
 			je		CEH_R
@@ -923,6 +927,7 @@ checkEnemyHit proc uses eax ebx ecx edx
 			inc		esi
 			mov		edx, enemyList[esi*4]
 			inc		esi
+			
 			cmp		ecx, 0
 			je		CEH_E
 			; loop of itetate playerbullet
@@ -954,12 +959,16 @@ checkEnemyHit proc uses eax ebx ecx edx
 			cmp		cx, ax
 			je		CEH_1
 			; else hit
+			xor		ecx, ecx
 			mov		ecx, enemyCopy
 			mov		ax, cx
 			shr		ecx, 16
 			sub		ecx, 50
 			cmp		ecx, 0
 			je		CEH_Dead
+			; no enemy is more than 10000 HP, means overflow
+			cmp		ecx, 10000
+			jge		CEH_Dead
 			shl		ecx, 16
 			mov		cx, ax
 			jmp		CEH_C
@@ -1149,9 +1158,9 @@ addPBullet proc	uses eax edi, pdir :word
 			mov		edi, playerBulTop
 			xor		eax, eax
 			mov		ax, pdir
-			shl		ax, 16
+			shl		eax, 16
 			mov		ax, playerColor
-			; shl		eax, 16
+
 			mov		playerBulList[edi*4], eax
 			inc		edi
 			xor		eax, eax
@@ -1232,16 +1241,16 @@ generateEnemy proc uses eax ebx ecx edx edi
 			cmp		edx, 1
 			je		GEN1
 			; 2 to black
-			mov		cx, 100
+			mov		cx, 300
 			shl		ecx, 16
-			; now hp is 100 default
+			; now hp is 300 default
 			mov		cx, 2
 			jmp		GEN2
  GEN1:		
-			mov		cx, 100
+			mov		cx, 300
 			shl		ecx, 16
 			; for test
-			mov		cx, 2
+			mov		cx, 1
  GEN2:
 			; rand position
 			xor		eax, eax
@@ -1262,6 +1271,7 @@ generateEnemy endp
 
 ; move all bullet
 moveBullet proc uses eax ebx edx edi
+			local	moveH :word
 			mov		edi, enemyBulBtm
  MVEB:		cmp		edi, enemyBulTop
 			je		MVBC
@@ -1291,10 +1301,29 @@ moveBullet proc uses eax ebx edx edi
 			je		MVBRet
 			mov		eax, playerBulList[edi*4]
 			inc		edi
+
+			; complex bullet
+			; if don't need, comment from here
+			shr		eax, 16
+			mov		moveH, ax
+
 			mov		ebx, playerBulList[edi*4]
+			mov		ax, bx
+			shr		ebx, 16
+			.if		moveH == 1
+				add bx, 1
+			.elseif moveH == 2
+				sub bx, 1
+			.endif
+			shl		ebx, 16
+			mov		bx, ax
+			; comment to here
+
 			sub		bx, 1
 			cmp		bx, 1
 			jg		MB4
+			cmp		bx, _HEIGHT
+			jle		MB4
 			xor		eax, eax
 			dec		edi
 			mov		playerBulList[edi*4], eax
@@ -1725,6 +1754,7 @@ MainLoop PROC
 			call	movePlayer
 			call	showScreen
  GL5:		; per 5ms
+			
 			call	moveBullet
 			
 			mov		dx, playerHP
