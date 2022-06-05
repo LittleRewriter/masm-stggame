@@ -86,7 +86,7 @@ playerEnergy	word	1
 ; position: x for left and right, y for up and down
 ; x: lower is left y:lower is up
 playerX			word	150
-playerY			word	399
+playerY			word	380
 
 ; two dword describe an enemy
 ; 63-48 enemy remain hp
@@ -263,7 +263,7 @@ enemyBulTop		dword	0
 ; attributes of bullet
     BulletTempPos       dd -1.0,-1.0,-3.0
     BulletTempPos2      dd -1.0,1.0,-3.0
-    BulletScale         dd 0.1, 0.2, 0.1
+    BulletScale         dd 0.075, 0.3, 0.1
     BulletSlices        dd 12
     EnemyBulletAmb      dd 0.69,0.19,0.38,1.0
     EnemyBulletDiff     dd 1.0,0.71,0.75,1.0
@@ -618,7 +618,7 @@ DrawEnemyPlane PROC     EnemyPosition   :DWORD
     ret
 DrawEnemyPlane ENDP 
 
-DrawPlayerBullet PROC   BulletPosition  :DWORD
+DrawEnemyBullet PROC   BulletPosition  :DWORD
     invoke glPushMatrix
       invoke GenerateGlPos, BulletPosition
       invoke GenerateGlScale, ADDR BulletScale
@@ -627,9 +627,9 @@ DrawPlayerBullet PROC   BulletPosition  :DWORD
                 ADDR DValue1, ADDR DValue1, BulletSlices
     invoke glPopMatrix
     ret
-DrawPlayerBullet ENDP
+DrawEnemyBullet ENDP
 
-DrawEnemyBullet PROC   BulletPosition  :DWORD
+DrawPlayerBullet PROC   BulletPosition  :DWORD
     invoke glPushMatrix
       invoke GenerateGlPos, BulletPosition
       invoke GenerateGlScale, ADDR BulletScale
@@ -638,7 +638,7 @@ DrawEnemyBullet PROC   BulletPosition  :DWORD
                 ADDR DValue1, ADDR DValue1, BulletSlices
     invoke glPopMatrix
     ret
-DrawEnemyBullet ENDP
+DrawPlayerBullet ENDP
 
 remapXYToPos	PROC 	Position	:DWORD,
 						OutPos		:DWORD,
@@ -652,7 +652,10 @@ remapXYToPos	PROC 	Position	:DWORD,
 	shr 	ebx, 16
 	mov		@tmp, ebx
 	fild	@tmp
-	mov		@tmp, 599
+	xor		ecx, ecx
+	mov		cx, _WIDTH
+	sub		ecx, 1
+	mov		@tmp, ecx
 	fild	@tmp
 	fdiv
 	fld		CameraW
@@ -664,7 +667,10 @@ remapXYToPos	PROC 	Position	:DWORD,
 	
 	mov		@tmp, eax
 	fild	@tmp
-	mov		@tmp, 799
+	xor		ecx, ecx
+	mov		cx, _HEIGHT
+	sub		ecx, 1
+	mov		@tmp, ecx
 	fild	@tmp
 	fdiv
 	fld		CameraH
@@ -691,9 +697,9 @@ renderEnemyBullet proc
 	pop		@bt
 	mov		edi, @bb
 	
- CPH_B:
+ CPH_BE:
 	cmp		edi, @bt
-	je		CPH_E
+	je		CPH_EE
 	mov		ebx, enemyBulList[edi*4]
 	inc		edi
 	mov		eax, enemyBulList[edi*4]
@@ -706,11 +712,11 @@ renderEnemyBullet proc
 	pop		edi
 
 	cmp		edi, 2048
-	jle		CPH_B
+	jle		CPH_BE
 	sub		edi, 2048
-	jmp		CPH_B
+	jmp		CPH_BE
 
- CPH_E:
+ CPH_EE:
 	ret
 renderEnemyBullet endp
 
@@ -727,9 +733,9 @@ renderPlayerBullet proc
 	pop		@bt
 	mov		edi, @bb
 	
- CPH_B:
+ CPH_BP:
 	cmp		edi, @bt
-	je		CPH_E
+	je		CPH_EP
 	mov		ebx, playerBulList[edi*4]
 	inc		edi
 	mov		eax, playerBulList[edi*4]
@@ -742,11 +748,11 @@ renderPlayerBullet proc
 	pop 	edi
 
 	cmp		edi, 2048
-	jle		CPH_B
+	jle		CPH_BP
 	sub		edi, 2048
-	jmp		CPH_B
+	jmp		CPH_BP
 
- CPH_E:
+ CPH_EP:
 	ret
 renderPlayerBullet endp
 
@@ -763,9 +769,9 @@ renderEnemy proc
 	pop		@bt
 	mov		edi, @bb
 	
- CPH_B:
+ CPH_ES:
 	cmp		edi, @bt
-	je		CPH_E
+	je		CPH_EES
 	lea		eax, enemyList[edi*4]
 	mov		ebx, enemyList[edi*4]
 	inc		edi
@@ -781,11 +787,11 @@ renderEnemy proc
 	pop 	edi
 
 	cmp		edi, 2048
-	jle		CPH_B
+	jle		CPH_ES
 	sub		edi, 2048
-	jmp		CPH_B
+	jmp		CPH_ES
 
- CPH_E:
+ CPH_EES:
 	ret
 renderEnemy endp
 
