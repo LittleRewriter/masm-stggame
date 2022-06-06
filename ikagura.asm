@@ -63,6 +63,8 @@ playerColor		word	1
 
 ; player's HP
 playerHP		word	1000
+playerMaxHP		word 	1000
+enemyMaxHP		word	300
 
 ; restrict between two frames
 bulletRes		word	1
@@ -952,15 +954,6 @@ checkEnemyHit proc uses eax ebx ecx edx
 			; not je CEH_1, means bullet and enemy collides
 			mov		ecx, enemyCopy
 			mov		eax, bulletCopy
-			; only need lower 2 bit
-			and		cx, 3
-
-			; same color, doesn't hit
-			cmp		cx, ax
-			je		CEH_1
-			; else hit
-			xor		ecx, ecx
-			mov		ecx, enemyCopy
 			mov		ax, cx
 			shr		ecx, 16
 			sub		ecx, 50
@@ -1043,14 +1036,6 @@ checkPlayerHit proc uses eax ebx ecx edx
 			invoke	checkHitbox, eax, ecx
 			cmp		eax, 0
 			je		CPH_1
-			; player hitted by bullet
-			mov		bulletCopy, ebx
-			; only need lower 2 bit
-			and		bx, 3
-			; same color, doesn't hit
-			cmp		bx, playerColor
-			je		CPH_1
-			; else hit
 			mov		bx, playerHP
 			sub		bx, 50
 			mov		playerHP, bx
@@ -1078,14 +1063,7 @@ checkPlayerHit proc uses eax ebx ecx edx
 			je		CPH_3
 			cmp		eax, 0
 			je		CPH_3
-			; player hitted by enemy
-			mov		enemyCopy, ebx
-			; only need lower 2 bit
-			and		bx, 3
-			; same color, doesn't hit
-			cmp		bx, playerColor
-			je		CPH_3
-			; else hit
+			; player hitted by enemy bullet
 			mov		bx, playerHP
 			sub		bx, 100
 			mov		playerHP, bx
@@ -1237,20 +1215,12 @@ generateEnemy proc uses eax ebx ecx edx edi
 			cmp		edx, 0
 			je		GENR
 			xor		ecx, ecx
-			; 1 to generate white enemy
-			cmp		edx, 1
-			je		GEN1
-			; 2 to black
+			; 1 indicates hitted enemy
+			; 2 indicates normal enemy
+			; enemy deafault HP is 300
 			mov		cx, 300
 			shl		ecx, 16
-			; now hp is 300 default
 			mov		cx, 2
-			jmp		GEN2
- GEN1:		
-			mov		cx, 300
-			shl		ecx, 16
-			; for test
-			mov		cx, 1
  GEN2:
 			; rand position
 			xor		eax, eax
@@ -1337,7 +1307,7 @@ moveBullet proc uses eax ebx edx edi
 			sub		edi, 2048
  MB3:
 			jmp		MVPB
- MVBRet:		
+ MVBRet:
 			ret
 moveBullet endp
 
@@ -1560,6 +1530,9 @@ resetLock endp
 initGame proc
 			mov		ax, 1000
 			mov		playerHP, ax
+			mov		playerMaxHP, ax
+			mov		ax, 300
+			mov		enemyMaxHP, ax
 			xor		eax, eax
 			mov		ax, INIT_X
 			mov		playerX, ax
@@ -1673,17 +1646,17 @@ MainLoop PROC
 			LOCAL   msg: MSG
 			local	frameCount :word
  BeginLoop:
-    		invoke PeekMessage, ADDR msg, 0, 0, 0, PM_NOREMOVE
+    		invoke 	PeekMessage, ADDR msg, 0, 0, 0, PM_NOREMOVE
     		or      eax, eax
     		jz      NoMsg
-    		invoke GetMessage, ADDR msg, NULL, 0, 0
+    		invoke 	GetMessage, ADDR msg, NULL, 0, 0
     		or      eax, eax
     		jz      EndLoop
-    		invoke TranslateMessage, ADDR msg
-    		invoke DispatchMessage, ADDR msg
-    		jmp     BeginLoop   
+    		invoke 	TranslateMessage, ADDR msg
+    		invoke 	DispatchMessage, ADDR msg
+    		jmp     BeginLoop
  NoMsg: 		
- 		; update loop
+ 			; update loop
 			; sleep frame time
 			mov		bx, frameCount
 			inc		bx
@@ -1747,16 +1720,17 @@ MainLoop PROC
  GL25:		; per 25ms
 			call	moveEnemy
 			call	checkEnemyHit
-			call	checkPlayerHit
 			call	readOpr
 			
  GL10:		; per 10ms
 			call	movePlayer
+			call	checkPlayerHit
 			call	showScreen
  GL5:		; per 5ms
 			
 			call	moveBullet
-			
+			call	checkEnemyHit
+			call	checkPlayerHit
 			mov		dx, playerHP
 			cmp		dx, 0
 			jle		GameOvr
