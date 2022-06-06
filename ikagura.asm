@@ -301,6 +301,7 @@ cursorXY			PROTO :WORD, :WORD
 checkHitbox			PROTO :DWORD, :DWORD
 checkEnemyHit		PROTO
 checkPlayerHit		PROTO
+checkBulletHit		PROTO
 addEBullet			PROTO :DWORD, :DWORD
 addEnemy			PROTO :DWORD, :DWORD
 addPBullet			PROTO :WORD
@@ -857,6 +858,76 @@ cursorXY proc uses eax, px :word, py:word
 			invoke	SetConsoleCursorPosition, handle, addr pos
 			ret
 cursorXY endp
+
+checkBulletHit proc uses eax ebx ecx edx esi edi
+			local	pBulletCopy: dword
+			local 	eBulletCopy: dword
+			local 	@pbb: dword
+			local 	@pbt: dword
+			local	@ebb: dword
+			local	@ebt: dword
+
+			mov		edi, playerBulBtm
+			mov		@pbb, edi
+			mov		edi, playerBulTop
+			mov		@pbt, edi
+			mov		edi, enemyBulBtm
+			mov		@ebb, edi
+			mov		edi, enemyBulTop
+			mov		@ebt, edi
+			
+			mov		edi, @pbb
+			mov		esi, @ebb
+
+CBH1:		; main loop, iteration of enemy bullet
+			mov		edi, @pbb
+			cmp		esi, 2048
+			jl		CBH2
+			sub		esi, 2048
+CBH2:
+			cmp		esi, @ebt
+			je		CBH6
+			; fetch position of enemy bullet to ebx
+			mov		eax, enemyBulList[esi*4]
+			inc		esi
+			mov		ebx, enemyBulList[esi*4]
+			inc		esi
+			cmp		eax, 0
+			je		CBH1
+CBH3:		; sub loop, iteration of player bullet
+			cmp		edi, 2048
+			jl		CBH4
+			sub		edi, 2048
+CBH4:
+			cmp		edi, @pbt
+			je		CBH1
+			mov		eax, playerBulList[edi*4]
+			inc 	edi
+			mov		ebx, playerBulList[edi*4]
+			inc		edi
+			cmp		eax, 0
+			je		CBH3
+			mov		eBulletCopy, ecx
+			mov		pBulletCopy, eax
+			invoke	checkHitbox, ebx, edx
+			cmp		eax, 0
+			je		CBH1
+			; player bullet collide enmey bullet
+			sub		esi, 2
+			mov		enemyBulList[esi*4], 0
+			add		esi, 2
+			sub		edi, 2
+			mov		playerBulList[edi*4], 0
+			add		edi, 2
+CBH5:
+			cmp		edi, 2048
+			jl		CBH3
+			sub		edi, 2048
+			jmp		CBH3
+CBH6:
+			ret
+checkBulletHit endp
+
 
 ; check whether obj at posA and obj at posB is collide
 ; use |ax-bx|+|ay-by| to check distance
@@ -1731,6 +1802,7 @@ MainLoop PROC
 			call	moveBullet
 			call	checkEnemyHit
 			call	checkPlayerHit
+			call 	checkBulletHit
 			mov		dx, playerHP
 			cmp		dx, 0
 			jle		GameOvr
