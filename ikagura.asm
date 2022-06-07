@@ -1138,8 +1138,11 @@ checkEnemyHit proc uses eax ebx ecx edx
 			mov		ax, cx
 			shr		ecx, 16
 			sub		ecx, 50
+			push	ecx
+			invoke	printf, offset FMTINT, ecx
+			pop		ecx
 			cmp		ecx, 0
-			je		CEH_Dead
+			jle		CEH_Dead
 			; no enemy is more than 10000 HP, means overflow
 			cmp		ecx, 10000
 			jge		CEH_Dead
@@ -1405,13 +1408,6 @@ generateEnemy proc uses eax ebx ecx edx edi
 			div		ebx
 			cmp		edx, 0
 			je		GENR
-			xor		ecx, ecx
-			; 1 indicates hitted enemy
-			; 2 indicates normal enemy
-			; enemy deafault HP is 300
-			mov		cx, 300
-			shl		ecx, 16
-			mov		cx, 2
  GEN2:
 			; rand position
 			xor		eax, eax
@@ -1424,6 +1420,13 @@ generateEnemy proc uses eax ebx ecx edx edi
 			xor		eax, eax
 			mov		ax, dx
 			shl		eax, 16
+			xor		ecx, ecx
+			; 1 indicates hitted enemy
+			; 2 indicates normal enemy
+			; enemy deafault HP is 300
+			mov		cx, 300
+			shl		ecx, 16
+			mov		cx, 2
 			; default posY is 0
 			invoke	addEnemy, ecx, eax
  GENR:
@@ -1439,7 +1442,7 @@ moveBullet proc uses eax ebx edx edi
 			mov		eax, enemyBulList[edi*4]
 			inc		edi
 			mov		ebx, enemyBulList[edi*4]
-			add		bx, 1
+			add		bx, 2
 			cmp		bx, _HEIGHT
 			jl		MB2
 			xor		eax, eax
@@ -1472,15 +1475,15 @@ moveBullet proc uses eax ebx edx edi
 			mov		ax, bx
 			shr		ebx, 16
 			.if		moveH == 1
-				add bx, 1
+				add bx, 2
 			.elseif moveH == 0
-				sub bx, 1
+				sub bx, 2
 			.endif
 			shl		ebx, 16
 			mov		bx, ax
 			; comment to here
 
-			sub		bx, 1
+			sub		bx, 2
 			cmp		bx, 1
 			jg		MB4
 			cmp		bx, _HEIGHT
@@ -1528,6 +1531,7 @@ moveEnemy proc uses eax ebx ecx edx edi esi
 			pop		edi
 			pop		ebx
 			pop		ecx
+			mov		eax, edi
 			mov		esi, 3
 			idiv	esi
 			; 0, goto vertical
@@ -1537,7 +1541,7 @@ moveEnemy proc uses eax ebx ecx edx edi esi
 			cmp		edx, 1
 			je		MENL
 			; else goto right
-			add		bx, 1
+			add		bx, 2
 			; overbound, delete
 			cmp		bx, _WIDTH
 			jge		MENDel
@@ -1546,20 +1550,20 @@ moveEnemy proc uses eax ebx ecx edx edi esi
 			mov		bx, cx
 			mov		ecx, ebx
 			jmp		MENV
- MENL:		dec		bx
+ MENL:		sub		bx, 2
 			cmp		bx, 0
 			jle		MENDel
 			shl		ebx, 16
 			mov		bx, cx
 			mov		ecx, ebx
 			; default move 1 down
- MENV:		inc		ecx
+ MENV:		add		ecx, 2
 			cmp		cx, _HEIGHT
 			jge		MENDel
 			cmp		cx, 0
 			jle		MENDel
 			jmp		MENRem
- MENDel:		dec		edi
+ MENDel:	dec		edi
 			; 0 to delete enemy
 			mov		ecx, 0
 			mov		enemyList[edi*4], ecx
@@ -1590,13 +1594,13 @@ movePlayer proc uses eax
  PMF:		mov		ax, playerY
 			cmp		ax, 0
 			jle		PMH
-			dec		ax
+			sub		ax, 2
 			mov		playerY, ax
 			jmp		PMH
  PMB:		mov		ax, playerY
 			cmp		ax, _HEIGHT
 			jge		PMH
-			inc		ax
+			add		ax, 2
 			mov		playerY, ax
 			jmp		PMH
  PMH:		mov		ax, pHorizonal
@@ -1608,13 +1612,13 @@ movePlayer proc uses eax
  PML:		mov		ax, playerX
 			cmp		ax, 0
 			jle		PRet
-			dec		ax
+			sub		ax, 2
 			mov		playerX, ax
 			jmp		PRet
  PMR:		mov		ax, playerX
 			cmp		ax, _WIDTH
 			jge		PRet
-			inc		ax
+			add		ax, 2
 			mov		playerX, ax
 			jmp		PRet
  PRet:		
