@@ -17,6 +17,7 @@ include \masm32\include\opengl32.inc
 include \masm32\include\glu32.inc
 include \masm32\include\msvcrt.inc
 include \masm32\include\Comdlg32.inc
+include \masm32\include\winmm.inc
 
 includelib \masm32\lib\gdi32.lib
 includelib \masm32\lib\user32.lib
@@ -25,6 +26,7 @@ includelib \masm32\lib\msvcrt.lib
 includelib \masm32\lib\Comdlg32.lib
 includelib \masm32\lib\opengl32.lib
 includelib \masm32\lib\glu32.lib
+includelib \masm32\lib\winmm.lib
 
 PFD_MAIN_PLANE		equ	0
 PFD_TYPE_COLORINDEX	equ	1
