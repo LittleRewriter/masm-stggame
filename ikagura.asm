@@ -126,6 +126,7 @@ ENDGAME			byte	1024 dup(0), 0
 	szWindowTitle       db "TestOpenGL",0
 	szClassName         db "Win32SDI_Class",0
 	szCloseHint         db "Do you want to close?",0
+	szMusicDir			db "bgm.wav",0
 
 	CommandLine         dd 0
 	hWnd                dd 0
@@ -1791,8 +1792,9 @@ MainCallback    PROC hWin:DWORD,
         mov eax, 0
         ret
     .elseif uMsg == WM_DESTROY
-		
+		invoke PlaySoundA, NULL, NULL, 0
         invoke PostQuitMessage, NULL
+		invoke ExitProcess, 0
         mov eax, 0
         ret
     .endif
@@ -1993,6 +1995,8 @@ MainProg    PROC hInst: DWORD,
     invoke ShowWindow, hWnd, SW_SHOW
     invoke UpdateWindow, hWnd
 
+	invoke PlaySoundA, ADDR szMusicDir, NULL, SND_LOOP or SND_ASYNC or SND_FILENAME
+
     invoke MainLoop
 
     ret 
@@ -2011,6 +2015,8 @@ main proc
     		mov     CommandLine, eax
 
 			invoke MainProg, hInstance, CommandLine
+			invoke PlaySoundA, NULL, NULL, 0
+			invoke ExitProcess, 0
 			ret
 main endp
 end main
