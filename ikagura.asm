@@ -154,6 +154,7 @@ enemyBulTop		dword	0
     FValue1         dd 1.0
     FValue90        dd 90.0
     FValueM90       dd -90.0
+	FValue05		dd 0.5
     DValue0         dq 0.0
     DValue1         dq 1.0
     DValue90        dq 90.0
@@ -272,6 +273,21 @@ enemyBulTop		dword	0
     PlayerBulletAmb     dd 0.69,0.19,0.38,1.0
     PlayerBulletDiff    dd 1.0,0.71,0.75,1.0
 
+; attributes of health bar
+	HealthBarRedCol		dd 1.0,0.0,0.0,1.0
+	HealthBarGreenCol	dd 0.0,1.0,0.0,1.0
+	HealthBarLeftPos	dd -5.4
+	HealthBarRightPos	dd 5.4
+	HealthBarWidth		dd 10.8
+	HealthBarYZPos		dd 7.5, -3.0
+	HealthBarYZScale	dd 0.6, 1.0
+	HealthBarDiff		dd 0.0,0.0,0.0,0.0
+
+	TempLeftTestPos		real4 -0.54, 7.5, -3.0
+	TempLeftTestScale	real4 9.72, 0.6, 1.0
+	TempRightTestPos	real4 4.86, 7.5, -3.0
+	TempRightTestScale	real4 1.08, 0.6, 1.0
+
 .code
 
 ; ###########################################
@@ -291,11 +307,13 @@ DrawPlayerPlane		PROTO :DWORD
 DrawEnemyPlane		PROTO :DWORD
 DrawPlayerBullet	PROTO :DWORD
 DrawEnemyBullet		PROTO :DWORD
+DrawHealthBar		PROTO
 remapXYToPos		PROTO :DWORD, :DWORD, :REAL4
 renderEnemyBullet	PROTO
 renderPlayerBullet  PROTO
 renderEnemy			PROTO
 renderPlayer		PROTO
+renderHealthBar		PROTO
 getPos				PROTO :WORD, :WORD
 cursorXY			PROTO :WORD, :WORD
 checkHitbox			PROTO :DWORD, :DWORD
@@ -643,6 +661,87 @@ DrawPlayerBullet PROC   BulletPosition  :DWORD
     ret
 DrawPlayerBullet ENDP
 
+DrawHealthBar PROC
+	LOCAL	alpha 		:REAL4
+	LOCAL	leftScaleX	:REAL4
+	LOCAL   leftPosX	:REAL4
+	LOCAL	rightScaleX	:REAL4
+	LOCAL 	rightPosX	:REAL4
+
+	; invoke glPushMatrix
+	; 	invoke GenerateGlPos, ADDR TempRightTestPos
+	; 	invoke GenerateGlScale, ADDR TempRightTestScale
+	; 	invoke glColor4fv, ADDR HealthBarRedCol
+	; 	invoke GlDrawCube
+	; invoke glPopMatrix
+	; invoke glPushMatrix
+	; 	invoke GenerateGlPos, ADDR TempLeftTestPos
+	; 	invoke GenerateGlScale, ADDR TempLeftTestScale
+	; 	invoke glColor4fv, ADDR HealthBarGreenCol
+	; 	invoke GlDrawCube
+	; invoke glPopMatrix
+
+	invoke glPushMatrix
+	  ; left healthbar scale
+	  fild	playerHP
+	  fild 	playerMaxHP
+	  fdiv
+	  fstp	alpha
+	  fld	HealthBarWidth
+	  fld	alpha
+	  fmul
+	  fstp	leftScaleX
+	  ; left healthbar pos
+	  fld	FValue05
+	  fld	leftScaleX
+	  fmul
+	  fld	HealthBarLeftPos
+	  fadd
+	  fstp  leftPosX
+	  lea 	eax, HealthBarYZPos
+	  mov	ebx, [eax]
+	  mov	ecx, [eax+4]
+	  mov	eax, leftPosX
+	  invoke glTranslatef, eax, ebx, ecx
+	  lea 	eax, HealthBarYZScale
+	  mov	ebx, [eax]
+	  mov	ecx, [eax+4]
+	  mov	eax, leftScaleX
+	  invoke glScalef, eax, ebx, ecx
+	  invoke glColor4fv, ADDR HealthBarGreenCol
+	  invoke GlDrawCube
+	invoke glPopMatrix
+	invoke glPushMatrix
+	  ; right healthbar scale
+	  fld	FValue1
+	  fld	alpha
+	  fsub
+	  fld  	HealthBarWidth
+	  fmul
+	  fstp	rightScaleX
+	  ; left healthbar pos
+	  fld	HealthBarRightPos
+	  fld	FValue05
+	  fld	rightScaleX
+	  fmul
+	  fsub
+	  fstp  rightPosX
+	  lea 	eax, HealthBarYZPos
+	  mov	ebx, [eax]
+	  mov	ecx, [eax+4]
+	  mov	eax, rightPosX
+	  invoke glTranslatef, eax, ebx, ecx
+	  lea 	eax, HealthBarYZScale
+	  mov	ebx, [eax]
+	  mov	ecx, [eax+4]
+	  mov	eax, rightScaleX
+	  invoke glScalef, eax, ebx, ecx
+	  invoke glColor4fv, ADDR HealthBarRedCol
+	  invoke GlDrawCube 
+	invoke glPopMatrix
+	ret
+DrawHealthBar ENDP
+
 remapXYToPos	PROC 	Position	:DWORD,
 						OutPos		:DWORD,
 						ZPos		:REAL4
@@ -816,6 +915,13 @@ renderPlayer proc
 
 	ret
 renderPlayer endp
+
+renderHealthBar proc
+	invoke glDisable, GL_LIGHTING
+	invoke DrawHealthBar
+	invoke glEnable, GL_LIGHTING
+	ret
+renderHealthBar endp
 
 ; ###########################################
 ; ####### this region is for gameplay #######
@@ -1694,6 +1800,7 @@ showScreen proc
 		invoke renderEnemy
 		invoke renderPlayerBullet
 		invoke renderEnemyBullet
+		invoke renderHealthBar
     invoke glPopMatrix
     invoke SwapBuffers, MainHDC
 	ret
