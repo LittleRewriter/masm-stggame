@@ -2,7 +2,7 @@
 .686
 .model flat, stdcall
 option casemap :none
-
+	sprintf			PROTO C :ptr sbyte, :ptr sbyte, :vararg
 	printf			PROTO C :ptr sbyte, :vararg
 	time			PROTO C :dword
 	srand			PROTO C :dword
@@ -47,7 +47,8 @@ FMTINT			byte	"%d ", 0
 
 MAXCOUNT		dword	1024
 
-GAMEOVER		byte	"GAME OVER!", 10, 0
+GAMEOVER		byte	"GAME OVER!", 10, "You have hunted %d Enemies!", 0
+GAMEOVER2		byte	"GAME OVER", 0
 
 .data
 
@@ -56,7 +57,7 @@ GAMEOVER		byte	"GAME OVER!", 10, 0
 ; ##########################################
 
 ; score
-score			word	0
+score			dword	0
 
 ; player is white if playerColor is 1, black if 2
 playerColor		word	1
@@ -115,6 +116,8 @@ playerBulTop	dword	0
 enemyBulList	dword	2048 dup(0), 0
 enemyBulBtm		dword	0
 enemyBulTop		dword	0
+
+ENDGAME			byte	1024 dup(0), 0
 
 ; ########################################
 ; ### this region is for rendering #######
@@ -1143,6 +1146,11 @@ checkEnemyHit proc uses eax ebx ecx edx
 			mov		cx, ax
 			jmp		CEH_C
  CEH_Dead:	
+			push	eax
+			mov		eax, score
+			inc		eax
+			mov		score, eax
+			pop		eax
 			xor		ecx, ecx
  CEH_C:
 			; go back to point to current obj
@@ -1255,6 +1263,11 @@ checkPlayerHit proc uses eax ebx ecx edx
 			jmp		CPH_C
  CPH_Dead:	
 			xor		ebx, ebx
+			push	eax
+			mov		eax, score
+			inc		eax
+			mov		score, eax
+			pop		eax
  CPH_C:
 			; go back to point to collide enemy
 			sub		esi, 2
@@ -1459,7 +1472,7 @@ moveBullet proc uses eax ebx edx edi
 			shr		ebx, 16
 			.if		moveH == 1
 				add bx, 1
-			.elseif moveH == 2
+			.elseif moveH == 0
 				sub bx, 1
 			.endif
 			shl		ebx, 16
@@ -1774,9 +1787,11 @@ MainCallback    PROC hWin:DWORD,
       NoGlDC:
         invoke ReleaseDC,hWin,MainHDC
         invoke DestroyWindow, hWin
+		
         mov eax, 0
         ret
     .elseif uMsg == WM_DESTROY
+		
         invoke PostQuitMessage, NULL
         mov eax, 0
         ret
@@ -1808,7 +1823,8 @@ showScreen endp
 
 ; called when player's dead
 gameOver proc
-			invoke		printf, offset GAMEOVER
+			invoke	sprintf, offset ENDGAME, offset GAMEOVER, score
+			invoke  MessageBox, hWnd, offset ENDGAME, offset GAMEOVER2, MB_OK
 			ret
 gameOver endp
 
